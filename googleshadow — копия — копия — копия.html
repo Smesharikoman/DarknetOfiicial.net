@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DArknet Shop</title>
+  <style>
+    :root {
+      --bg-color: #050505;
+      --term-green: #00ff41;
+      --term-dim: #008f11;
+      --alert-red: #ff3333;
+      --font-stack: 'Courier New', Courier, monospace;
+      --scan-line: rgba(0, 255, 65, 0.04);
+      --card-bg: #000;
+      --muted: #9aa0a6;
+      --chip-bg: transparent;
+    }
+
+    /* THEMES */
+    :root[data-theme="matrix"]{
+      --bg-color:#050505; --term-green:#00ff41; --term-dim:#008f11; --scan-line:rgba(0,255,65,.04);
+    }
+    :root[data-theme="amber"]{
+      --bg-color:#070603; --term-green:#ffb000; --term-dim:#9a6b00; --scan-line:rgba(255,176,0,.04);
+    }
+    :root[data-theme="ice"]{
+      --bg-color:#03070a; --term-green:#6ee7ff; --term-dim:#2aa9c7; --scan-line:rgba(110,231,255,.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--term-green);
+      font-family: var(--font-stack);
+      font-size: 16px;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    .scanline {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(to bottom, transparent 50%, var(--scan-line) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .glow { text-shadow: 0 0 5px var(--term-green); }
+    .glow-red { text-shadow: 0 0 5px var(--alert-red); color: var(--alert-red); }
+
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+    .cursor::after { content: '_'; animation: blink 1s infinite; }
+
+    button {
+      background: transparent;
+      border: 1px solid var(--term-green);
+      color: var(--term-green);
+      padding: 10px 14px;
+      font-family: var(--font-stack);
+      cursor: pointer;
+      transition: 0.2s;
+      text-transform: uppercase;
+      font-weight: bold;
+      line-height: 1;
+    }
+    button:hover { background: var(--term-green); color: var(--bg-color); box-shadow: 0 0 15px var(--term-green); }
+    button.danger { border-color: var(--alert-red); color: var(--alert-red); }
+    button.danger:hover { background: var(--alert-red); color: #000; box-shadow: 0 0 15px var(--alert-red); }
+
+    input, select, textarea {
+      background: #000;
+      border: 1px solid var(--term-dim);
+      color: var(--term-green);
+      padding: 10px;
+      width: 100%;
+      font-family: var(--font-stack);
+      margin-bottom: 10px;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--term-green);
+      box-shadow: 0 0 5px var(--term-green);
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .hidden { display: none !important; }
+
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--term-dim);
+      padding-bottom: 16px; margin-bottom: 16px;
+      gap: 12px;
+    }
+    .logo { font-size: 1.4rem; font-weight: bold; letter-spacing: 2px; }
+    nav { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+    .muted { color: var(--muted); }
+
+    /* AUTH */
+    #auth-screen {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 80vh; text-align: center; border: 1px solid var(--term-dim);
+      max-width: 560px; margin: 50px auto; padding: 40px;
+      background: rgba(0,0,0,0.35);
+    }
+
+    /* SECTION PICKER */
+    .section-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+    .section-card{
+      border: 1px solid var(--term-dim);
+      background: var(--card-bg);
+      padding: 16px;
+      cursor: pointer;
+      transition: .2s;
+      min-height: 110px;
+      display:flex; flex-direction:column; justify-content:space-between;
+    }
+    .section-card:hover{ border-color: var(--term-green); box-shadow: 0 0 12px var(--term-dim); transform: translateY(-2px); }
+    .section-card .title{ font-size:1.1rem; }
+    .section-card .meta{ font-size:.85rem; color: var(--muted); }
+
+    /* SHOP */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+    .card { border: 1px solid var(--term-dim); padding: 15px; display: flex; flex-direction: column; transition: 0.3s; background: var(--card-bg); }
+    .card:hover { border-color: var(--term-green); box-shadow: 0 0 10px var(--term-dim); transform: translateY(-2px); }
+    .card img { width: 100%; height: 150px; object-fit: cover; filter: grayscale(100%) contrast(1.2); border-bottom: 1px solid var(--term-dim); margin-bottom: 10px; }
+    .card:hover img { filter: grayscale(0%); }
+    .price { font-size: 1.2rem; font-weight: bold; margin: 10px 0; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .pill { border: 1px dashed var(--term-dim); padding: 6px 10px; font-size: .85rem; color: var(--muted); }
+
+    /* CHIPS */
+    .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .chip {
+      border: 1px solid var(--term-dim);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      background: var(--chip-bg);
+    }
+    .chip.active { background: var(--term-green); color: #000; }
+
+    /* TABLE */
+    .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+    .data-table th, .data-table td { border: 1px solid var(--term-dim); padding: 8px; text-align: left; vertical-align: top; }
+
+    .status-new { color: yellow; font-weight: bold; }
+    .status-processing { color: cyan; }
+    .status-done { color: lime; }
+    .status-canceled { color: red; }
+
+    /* MODALS */
+    .modal {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal-content {
+      background: #000;
+      border: 2px solid var(--term-green);
+      padding: 22px;
+      width: 92%;
+      max-width: 680px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-title{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+    .close-btn { cursor: pointer; font-size: 1.7rem; line-height: 1; }
+
+    .toast {
+      position: fixed; bottom: 20px; right: 20px; background: #000; border: 1px solid var(--term-green);
+      padding: 15px; color: var(--term-green); z-index: 2000; display: none;
+      max-width: 520px;
+    }
+
+    .divider{ border-top: 1px dashed var(--term-dim); margin: 12px 0; }
+
+    /* small */
+    .btn-sm{ padding: 6px 10px; font-size:.85rem; }
+    .btn-icon{ padding: 6px 10px; min-width: 44px; display:inline-flex; justify-content:center; align-items:center; }
+
+    @media (max-width: 520px){
+      header{ align-items:flex-start; }
+      .logo{ font-size:1.2rem; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="scanline"></div>
+  <div id="toast" class="toast glow"></div>
+
+  <!-- AUTH -->
+  <div id="auth-screen" class="container">
+    <h1 class="logo glow">DArknet <span style="font-size:0.55em">v3.0</span></h1>
+    <p style="margin: 18px 0;" class="muted">ACCESS_TERMINAL // AUTH_REQUIRED</p>
+
+    <div id="auth-forms" style="width:100%">
+      <input type="email" id="auth-email" placeholder="E-MAIL">
+      <input type="password" id="auth-password" placeholder="PASSWORD">
+
+      <div id="reg-fields" class="hidden">
+        <input type="text" id="auth-username" placeholder="CODENAME (NICK)">
+      </div>
+
+      <div style="margin-top: 16px; display: flex; gap: 10px; justify-content: center; flex-wrap:wrap;">
+        <button id="btn-login">ВОЙТИ</button>
+        <button id="btn-register-mode">РЕГИСТРАЦИЯ</button>
+      </div>
+      <p id="auth-error" class="glow-red" style="margin-top: 12px;"></p>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app-screen" class="container hidden">
+    <header>
+      <div class="logo glow cursor" id="logo-title">DArknet</div>
+      <nav>
+        <span id="user-display" style="margin-right: 6px; color: #fff;"></span>
+        <span class="pill" id="current-section-pill" style="display:none;"></span>
+
+        <button id="btn-settings" class="btn-sm">SETTINGS</button>
+        <button id="btn-cart">КОРЗИНА (<span id="cart-count">0</span>)</button>
+        <button id="btn-admin" class="hidden danger btn-sm">ADM_PANEL</button>
+        <button id="btn-logout" class="btn-sm">ВЫХОД</button>
+      </nav>
+    </header>
+
+    <!-- VIEW: SECTION PICKER -->
+    <div id="sections-view" class="hidden">
+      <div class="row" style="justify-content:space-between; align-items:flex-end;">
+        <div>
+          <h2 class="glow" id="sections-title">ВЫБЕРИ ГЛОБАЛЬНЫЙ РАЗДЕЛ</h2>
+          <div class="muted" id="sections-sub">Сначала раздел → потом товары</div>
+        </div>
+        <div class="row">
+          <button id="btn-refresh-sections" class="btn-sm">REFRESH</button>
+        </div>
+      </div>
+
+      <div id="sections-grid" class="section-grid"></div>
+    </div>
+
+    <!-- VIEW: SHOP -->
+    <div id="shop-view" class="hidden">
+      <div class="row" style="justify-content:space-between; margin-bottom: 12px;">
+        <div class="row" style="gap:10px;">
+          <button id="btn-back-to-sections" class="btn-sm">&lt; НАЗАД К РАЗДЕЛАМ</button>
+          <div class="muted" id="shop-breadcrumb"></div>
+        </div>
+
+        <div class="row">
+          <span class="pill" id="currency-pill"></span>
+          <span class="pill" id="language-pill"></span>
+        </div>
+      </div>
+
+      <div id="groups-nav" class="chips"></div>
+
+      <div class="row" style="margin-bottom: 14px; align-items:stretch;">
+        <input type="text" id="search-input" placeholder="> ПОИСК..." style="max-width: 320px; margin-bottom: 0;">
+        <select id="sort-select" style="max-width: 260px; margin-bottom: 0;">
+          <option value="none">СОРТИРОВКА: НЕТ</option>
+          <option value="price_asc">ЦЕНА: ↑</option>
+          <option value="price_desc">ЦЕНА: ↓</option>
+          <option value="name_asc">ИМЯ: A→Z</option>
+        </select>
+      </div>
+
+      <div id="products-grid" class="grid"></div>
+
+      <div class="divider"></div>
+
+      <div class="row" style="justify-content:space-between; margin-top: 10px;">
+        <div style="flex:1; min-width: 260px;">
+          <h3 class="glow">★ ИЗБРАННОЕ</h3>
+          <div id="favorites-list" class="muted" style="margin-top:6px;">—</div>
+        </div>
+        <div style="flex:1; min-width: 260px;">
+          <h3 class="glow">ПОСЛЕДНИЕ ПРОСМОТРЫ</h3>
+          <div id="recent-list" class="muted" style="margin-top:6px;">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="admin-view" class="hidden">
+      <h2 class="glow">ADMIN_PANEL // ROOT_ACCESS</h2>
+      <div class="chips" style="border-bottom: 1px dashed var(--term-dim); padding-bottom: 10px; margin-bottom: 12px;">
+        <button class="btn-sm" onclick="switchAdminTab('products')">ТОВАРЫ</button>
+        <button class="btn-sm" onclick="switchAdminTab('sections')">РАЗДЕЛЫ</button>
+        <button class="btn-sm" onclick="switchAdminTab('groups')">ГРУППЫ</button>
+        <button class="btn-sm" onclick="switchAdminTab('users')">ПОЛЬЗОВАТЕЛИ</button>
+        <button class="btn-sm" onclick="switchAdminTab('orders')" style="border-color: yellow; color: yellow;">ЗАКАЗЫ (!)</button>
+        <button class="btn-sm" onclick="showShop()"> &lt; В МАГАЗИН</button>
+      </div>
+      <div id="admin-content"></div>
+    </div>
+  </div>
+
+  <!-- CART MODAL -->
+  <div id="cart-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">ВАШ ЗАКАЗ</h2>
+        <span class="close-btn" onclick="toggleModal('cart-modal')">&times;</span>
+      </div>
+      <div id="cart-items" style="margin: 10px 0;"></div>
+      <h3 style="text-align: right;">ИТОГО: <span id="cart-total">0</span> <span id="cart-total-cur">RUB</span></h3>
+      <button onclick="openCheckout()" style="width: 100%; margin-top: 14px;">ОФОРМИТЬ</button>
+    </div>
+  </div>
+
+  <!-- CHECKOUT MODAL -->
+  <div id="checkout-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">ДОСТАВКА</h2>
+        <span class="close-btn" onclick="toggleModal('checkout-modal')">&times;</span>
+      </div>
+
+      <form id="checkout-form" onsubmit="goPayment(event)">
+        <input type="text" id="order-address" placeholder="АДРЕС (УЛИЦА, ДОМ)" required>
+        <div style="display: flex; gap: 10px;">
+          <input type="text" id="order-entrance" placeholder="ПОДЪЕЗД" required>
+          <input type="text" id="order-apt" placeholder="КВ." required>
+          <input type="text" id="order-floor" placeholder="ЭТАЖ">
+          <input type="text" id="order-intercom" placeholder="ДОМОФОН">
+        </div>
+        <textarea id="order-comment" placeholder="КОММЕНТАРИЙ К ЗАКАЗУ" rows="3"></textarea>
+
+        <button type="submit" style="width: 100%;">ДАЛЕЕ: ОПЛАТА</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- PAYMENT MODAL -->
+  <div id="payment-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">ОПЛАТА</h2>
+        <span class="close-btn" onclick="toggleModal('payment-modal')">&times;</span>
+      </div>
+
+      <form id="payment-form" onsubmit="processOrder(event)">
+        <div class="muted" style="margin-bottom:10px;">
+          Сумма: <span id="pay-amount" class="glow"></span>
+        </div>
+
+        <input id="card-name" placeholder="ИМЯ НА КАРТЕ" autocomplete="cc-name" required>
+        <input id="card-number" placeholder="НОМЕР КАРТЫ" inputmode="numeric" autocomplete="cc-number" maxlength="19" required>
+
+        <div style="display:flex; gap:10px;">
+          <input id="card-exp" placeholder="ГОДЕН ДО (MM/YY)" inputmode="numeric" autocomplete="cc-exp" maxlength="5" required>
+          <input id="card-cvc" placeholder="CVC" inputmode="numeric" autocomplete="cc-csc" maxlength="4" required>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row" style="justify-content:space-between;">
+          <button type="button" class="btn-sm" onclick="backToCheckout()">&lt; НАЗАД</button>
+          <button type="submit" style="min-width: 220px;">ОПЛАТИТЬ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">НАСТРОЙКИ</h2>
+        <span class="close-btn" onclick="toggleModal('settings-modal')">&times;</span>
+      </div>
+
+      <div class="row">
+        <div style="flex:1; min-width: 240px;">
+          <label class="muted">ТЕМА</label>
+          <select id="set-theme">
+            <option value="matrix">Matrix (зелёная)</option>
+            <option value="amber">Amber (янтарь)</option>
+            <option value="ice">Ice (голубая)</option>
+          </select>
+        </div>
+
+        <div style="flex:1; min-width: 240px;">
+          <label class="muted">ВАЛЮТА</label>
+          <select id="set-currency">
+            <option value="RUB">RUB ₽</option>
+            <option value="USD">USD $</option>
+            <option value="BUX">BUCKS ฿</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1; min-width: 240px;">
+          <label class="muted">ЯЗЫК</label>
+          <select id="set-lang">
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+
+        <div style="flex:1; min-width: 240px;">
+          <label class="muted">ПОКАЗЫВАТЬ ЦЕНЫ</label>
+          <select id="set-price-mode">
+            <option value="pretty">Красиво</option>
+            <option value="raw">Сырой формат</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="row" style="justify-content:space-between;">
+        <button class="btn-sm" onclick="resetLocal()">RESET LOCAL</button>
+        <button class="btn-sm" onclick="saveSettings()">SAVE</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, onSnapshot, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
+
+    // --- FIREBASE CONFIG (твоя) ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyB-JdJr9JuTBvriSX7BtKUxDKSTIZXYR9M",
+      authDomain: "darknet-8224d.firebaseapp.com",
+      projectId: "darknet-8224d",
+      storageBucket: "darknet-8224d.firebasestorage.app",
+      messagingSenderId: "772596032023",
+      appId: "1:772596032023:web:98a69482d8d0bbe2d13252",
+      measurementId: "G-ZVP0ZTCSZC"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    const analytics = getAnalytics(app);
+
+    // --- LOCAL SETTINGS ---
+    const DEFAULTS = { theme:"matrix", currency:"RUB", lang:"ru", priceMode:"pretty" };
+    const settings = loadLocal("settings") || { ...DEFAULTS };
+    document.documentElement.dataset.theme = settings.theme;
+
+    // --- FX (простые курсы) ---
+    // Можно заменить на динамику позже, но так уже нормально для интерфейса.
+    const FX = {
+      RUB: { symbol: "₽", rateFromRUB: 1 },
+      USD: { symbol: "$", rateFromRUB: 1/92 },
+      BUX: { symbol: "฿", rateFromRUB: 1/13 } // "bucks" — условно
+    };
+
+    // --- UI TEXTS (RU/EN) ---
+    const I18N = {
+      ru: {
+        settings:"НАСТРОЙКИ",
+        cart:"КОРЗИНА",
+        logout:"ВЫХОД",
+        pickSection:"ВЫБЕРИ ГЛОБАЛЬНЫЙ РАЗДЕЛ",
+        pickSectionSub:"Сначала раздел → потом товары",
+        backToSections:"< НАЗАД К РАЗДЕЛАМ",
+        allGroups:"ВСЕ ГРУППЫ",
+        searchPlaceholder:"> ПОИСК...",
+        loading:"ЗАГРУЗКА...",
+        empty:"ПУСТО",
+        added:"ДОБАВЛЕНО",
+        cartEmpty:"КОРЗИНА ПУСТА",
+        orderSent:"ЗАКАЗ ОТПРАВЛЕН",
+        err:"ОШИБКА",
+        favorites:"★ ИЗБРАННОЕ",
+        recent:"ПОСЛЕДНИЕ ПРОСМОТРЫ",
+      },
+      en: {
+        settings:"SETTINGS",
+        cart:"CART",
+        logout:"LOGOUT",
+        pickSection:"CHOOSE GLOBAL SECTION",
+        pickSectionSub:"Section first → products next",
+        backToSections:"< BACK TO SECTIONS",
+        allGroups:"ALL GROUPS",
+        searchPlaceholder:"> SEARCH...",
+        loading:"LOADING...",
+        empty:"EMPTY",
+        added:"ADDED",
+        cartEmpty:"CART IS EMPTY",
+        orderSent:"ORDER SENT",
+        err:"ERROR",
+        favorites:"★ FAVORITES",
+        recent:"RECENTLY VIEWED",
+      }
+    };
+
+    const t = (key) => (I18N[settings.lang] && I18N[settings.lang][key]) || I18N.ru[key] || key;
+
+    // --- STATE ---
+    let currentUser = null;
+    let userDocData = null;
+
+    let cart = loadLocal("cart") || [];
+    let favorites = loadLocal("favorites") || {}; // {productId:true}
+    let recent = loadLocal("recent") || []; // [{id,name}]
+
+    let globalSections = [];
+    let groupsBySection = {}; // {secId: [{id,name}]}
+    let productsCache = []; // loaded by snapshot (active==true)
+    let viewMode = "sections"; // "sections" | "shop" | "admin"
+
+    let currentSectionId = null;
+    let currentSectionName = null;
+    let currentGroupId = null;
+
+    // --- AUTH ELEMENTS ---
+    const authScreen = document.getElementById('auth-screen');
+    const appScreen = document.getElementById('app-screen');
+    const authError = document.getElementById('auth-error');
+
+    // --- MAIN VIEW ELEMENTS ---
+    const sectionsView = document.getElementById('sections-view');
+    const shopView = document.getElementById('shop-view');
+    const adminView = document.getElementById('admin-view');
+
+    const sectionsGrid = document.getElementById('sections-grid');
+    const groupsNav = document.getElementById('groups-nav');
+    const productsGrid = document.getElementById('products-grid');
+    const searchInput = document.getElementById('search-input');
+    const sortSelect = document.getElementById('sort-select');
+
+    const currentSectionPill = document.getElementById('current-section-pill');
+    const shopBreadcrumb = document.getElementById('shop-breadcrumb');
+    const currencyPill = document.getElementById('currency-pill');
+    const languagePill = document.getElementById('language-pill');
+
+    // --- HEADER BUTTONS ---
+    document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
+
+    document.getElementById('btn-settings').addEventListener('click', () => {
+      syncSettingsModal();
+      toggleModal('settings-modal');
+    });
+
+    document.getElementById('btn-cart').addEventListener('click', () => {
+      updateCartUI();
+      toggleModal('cart-modal');
+    });
+
+    document.getElementById('btn-admin').addEventListener('click', () => {
+      showAdmin();
+      switchAdminTab('products');
+    });
+
+    document.getElementById('btn-back-to-sections').addEventListener('click', () => {
+      currentSectionId = null;
+      currentSectionName = null;
+      currentGroupId = null;
+      showSections();
+    });
+
+    document.getElementById('btn-refresh-sections').addEventListener('click', () => {
+      showToast("REFRESH...");
+      // snapshots already live; just re-render
+      renderSections();
+    });
+
+    searchInput.addEventListener('input', () => renderProducts());
+    sortSelect.addEventListener('change', () => renderProducts());
+
+    // --- LOGIN / REGISTER ---
+    let isRegisterMode = false;
+    document.getElementById('btn-register-mode').addEventListener('click', () => {
+      isRegisterMode = !isRegisterMode;
+      document.getElementById('reg-fields').classList.toggle('hidden');
+      document.getElementById('btn-register-mode').innerText = isRegisterMode ? "НАЗАД" : "РЕГИСТРАЦИЯ";
+      document.getElementById('btn-login').innerText = isRegisterMode ? "ЗАРЕГИСТРИРОВАТЬСЯ" : "ВОЙТИ";
+    });
+
+    document.getElementById('btn-login').addEventListener('click', async () => {
+      const email = document.getElementById('auth-email').value;
+      const pass = document.getElementById('auth-password').value;
+      const username = document.getElementById('auth-username').value;
+      authError.innerText = "";
+      try {
+        if (isRegisterMode) {
+          if (!username) throw new Error("Укажите Ник");
+          const cred = await createUserWithEmailAndPassword(auth, email, pass);
+          await setDoc(doc(db, "users", cred.user.uid), {
+            email, username, role: "user", banned: false, createdAt: serverTimestamp()
+          });
+        } else {
+          await signInWithEmailAndPassword(auth, email, pass);
+        }
+      } catch (e) {
+        authError.innerText = "ОШИБКА: " + e.message;
+      }
+    });
+
+    // --- AUTH STATE ---
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userRef = doc(db, "users", user.uid);
+        onSnapshot(userRef, (snapshot) => {
+          if (!snapshot.exists()) return signOut(auth);
+
+          userDocData = snapshot.data();
+          if (userDocData.banned) {
+            signOut(auth);
+            showToast("ВЫ ЗАБЛОКИРОВАНЫ", true);
+            return;
+          }
+
+          currentUser = user;
+          initAppUI();
+        });
+      } else {
+        currentUser = null;
+        userDocData = null;
+        showAuthUI();
+      }
+    });
+
+    function showAuthUI() {
+      authScreen.classList.remove('hidden');
+      appScreen.classList.add('hidden');
+    }
+
+    function initAppUI() {
+      authScreen.classList.add('hidden');
+      appScreen.classList.remove('hidden');
+
+      document.getElementById('user-display').innerText = `[${userDocData.username}]`;
+      document.getElementById('btn-settings').innerText = t("settings");
+      document.getElementById('btn-cart').childNodes[0].textContent = t("cart") + " (";
+      document.getElementById('btn-logout').innerText = t("logout");
+
+      if (userDocData.role === 'admin') document.getElementById('btn-admin').classList.remove('hidden');
+      else document.getElementById('btn-admin').classList.add('hidden');
+
+      // live loaders
+      bindGlobalSections();
+      bindGroups();
+      bindProducts();
+
+      // start view
+      showSections();
+      updateHeaderMeta();
+      updateCartCount();
+      renderFavRecent();
+    }
+
+    // --- LIVE LOADERS ---
+    function bindGlobalSections() {
+      onSnapshot(query(collection(db, "globalSections")), (snap) => {
+        globalSections = [];
+        snap.forEach(d => globalSections.push({ id:d.id, ...d.data() }));
+        globalSections.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+        renderSections();
+      });
+    }
+
+    function bindGroups() {
+      // we listen ALL groups, and build map
+      onSnapshot(query(collection(db, "groups")), (snap) => {
+        groupsBySection = {};
+        snap.forEach(d => {
+          const g = { id:d.id, ...d.data() };
+          const secId = g.globalSectionId;
+          if (!secId) return;
+          if (!groupsBySection[secId]) groupsBySection[secId] = [];
+          groupsBySection[secId].push(g);
+        });
+        Object.keys(groupsBySection).forEach(secId => {
+          groupsBySection[secId].sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+        });
+        renderGroups();
+      });
+    }
+
+    function bindProducts() {
+      const q = query(collection(db, "products"), where("active", "==", true));
+      onSnapshot(q, (snap) => {
+        productsCache = [];
+        snap.forEach(d => productsCache.push({ id:d.id, ...d.data() }));
+        renderProducts();
+        renderSections(); // update counts
+      });
+    }
+
+    // --- VIEW SWITCH ---
+    function showSections() {
+      viewMode = "sections";
+      sectionsView.classList.remove('hidden');
+      shopView.classList.add('hidden');
+      adminView.classList.add('hidden');
+
+      document.getElementById('sections-title').innerText = t("pickSection");
+      document.getElementById('sections-sub').innerText = t("pickSectionSub");
+
+      currentSectionPill.style.display = "none";
+      shopBreadcrumb.innerText = "";
+      updateHeaderMeta();
+    }
+
+    function showShop() {
+      viewMode = "shop";
+      sectionsView.classList.add('hidden');
+      shopView.classList.remove('hidden');
+      adminView.classList.add('hidden');
+      updateHeaderMeta();
+      renderGroups();
+      renderProducts();
+      renderFavRecent();
+    }
+
+    window.showShop = showShop;
+
+    function showAdmin(){
+      viewMode = "admin";
+      sectionsView.classList.add('hidden');
+      shopView.classList.add('hidden');
+      adminView.classList.remove('hidden');
+      updateHeaderMeta();
+    }
+
+    function updateHeaderMeta(){
+      currencyPill.textContent = `${settings.currency} ${FX[settings.currency].symbol}`;
+      languagePill.textContent = settings.lang.toUpperCase();
+
+      if(currentSectionId && currentSectionName){
+        currentSectionPill.style.display = "inline-flex";
+        currentSectionPill.textContent = `РАЗДЕЛ: ${currentSectionName}`;
+        shopBreadcrumb.innerText = `${currentSectionName}${currentGroupId ? " / " + (getGroupName(currentSectionId, currentGroupId) || "") : ""}`;
+      } else {
+        currentSectionPill.style.display = "none";
+      }
+
+      document.getElementById('btn-settings').innerText = t("settings");
+      document.getElementById('btn-cart').childNodes[0].textContent = t("cart") + " (";
+      document.getElementById('btn-logout').innerText = t("logout");
+      document.getElementById('btn-back-to-sections').innerText = t("backToSections");
+      searchInput.placeholder = t("searchPlaceholder");
+      document.querySelector('#shop-view h3.glow')?.innerText; // no-op (safe)
+      document.querySelectorAll('#shop-view h3.glow')[0].innerText = t("favorites");
+      document.querySelectorAll('#shop-view h3.glow')[1].innerText = t("recent");
+    }
+
+    // --- SECTION RENDER ---
+    function renderSections(){
+      if(viewMode !== "sections") return;
+
+      // count products per section
+      const counts = {};
+      for(const p of productsCache){
+        const sid = p.globalSectionId;
+        if(!sid) continue;
+        counts[sid] = (counts[sid] || 0) + 1;
+      }
+
+      sectionsGrid.innerHTML = "";
+      if(globalSections.length === 0){
+        sectionsGrid.innerHTML = `<div class="muted">${t("loading")}</div>`;
+        return;
+      }
+
+      globalSections.forEach(sec => {
+        const div = document.createElement('div');
+        div.className = "section-card";
+        div.innerHTML = `
+          <div class="title glow">${escapeHtml(sec.name || "NONAME")}</div>
+          <div class="meta">Товаров: <span class="glow">${counts[sec.id] || 0}</span></div>
+        `;
+        div.addEventListener('click', () => {
+          currentSectionId = sec.id;
+          currentSectionName = sec.name || "SECTION";
+          currentGroupId = null;
+          showShop();
+        });
+        sectionsGrid.appendChild(div);
+      });
+    }
+
+    // --- GROUPS RENDER ---
+    function renderGroups(){
+      if(viewMode !== "shop") return;
+      groupsNav.innerHTML = "";
+
+      const list = (currentSectionId && groupsBySection[currentSectionId]) ? groupsBySection[currentSectionId] : [];
+
+      // chip: all groups
+      const all = document.createElement('div');
+      all.className = "chip " + (currentGroupId === null ? "active" : "");
+      all.textContent = t("allGroups");
+      all.onclick = () => { currentGroupId = null; renderGroups(); renderProducts(); updateHeaderMeta(); };
+      groupsNav.appendChild(all);
+
+      if(!currentSectionId){
+        // if no section chosen (rare), no groups
+        return;
+      }
+
+      list.forEach(g => {
+        const c = document.createElement('div');
+        c.className = "chip " + (currentGroupId === g.id ? "active" : "");
+        c.textContent = g.name || "GROUP";
+        c.onclick = () => { currentGroupId = g.id; renderGroups(); renderProducts(); updateHeaderMeta(); };
+        groupsNav.appendChild(c);
+      });
+    }
+
+    // --- PRODUCTS RENDER (filtered + search + sort) ---
+    function renderProducts(){
+      if(viewMode !== "shop") return;
+
+      productsGrid.innerHTML = `<p class="glow">${t("loading")}</p>`;
+      const queryText = (searchInput.value || "").trim().toLowerCase();
+
+      let list = productsCache.slice();
+
+      // section mandatory (как ты и хотел — товары только после выбора глобального)
+      if(!currentSectionId){
+        productsGrid.innerHTML = `<p class="muted">СНАЧАЛА ВЫБЕРИ ГЛОБАЛЬНЫЙ РАЗДЕЛ</p>`;
+        return;
+      }
+
+      list = list.filter(p => p.globalSectionId === currentSectionId);
+      if(currentGroupId) list = list.filter(p => (p.groupId || null) === currentGroupId);
+
+      if(queryText){
+        list = list.filter(p => (p.name || "").toLowerCase().includes(queryText));
+      }
+
+      // sort
+      const sort = sortSelect.value;
+      if(sort === "price_asc") list.sort((a,b)=> (a.price||0) - (b.price||0));
+      if(sort === "price_desc") list.sort((a,b)=> (b.price||0) - (a.price||0));
+      if(sort === "name_asc") list.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+
+      productsGrid.innerHTML = "";
+      if(list.length === 0){
+        productsGrid.innerHTML = `<p>${t("empty")}</p>`;
+        return;
+      }
+
+      list.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const img = p.imageUrl || 'https://via.placeholder.com/250/000000/00ff41?text=NO+IMAGE';
+        const priceText = formatMoney(convertFromRUB(Number(p.price)||0), settings.currency);
+
+        const fav = !!favorites[p.id];
+
+        card.innerHTML = `
+          <img src="${img}" alt="${escapeHtml(p.name||"")}">
+          <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px;">
+            <h3 class="glow" style="flex:1;">${escapeHtml(p.name||"NONAME")}</h3>
+            <button class="btn-icon btn-sm" title="FAVORITE" data-fav="${p.id}">${fav ? "★" : "☆"}</button>
+          </div>
+
+          <div class="price">
+            <span>${priceText}</span>
+            <span class="muted" style="font-size:.85rem;">${settings.currency}</span>
+          </div>
+
+          <div class="row" style="justify-content:space-between;">
+            <button class="btn-sm" data-add="${p.id}">В КОРЗИНУ</button>
+            <button class="btn-sm" data-view="${p.id}">DETAILS</button>
+          </div>
+        `;
+
+        // bind buttons
+        card.querySelector(`[data-add="${p.id}"]`).addEventListener('click', () => {
+          addToCart(p.id, p.name, Number(p.price)||0);
+        });
+
+        card.querySelector(`[data-view="${p.id}"]`).addEventListener('click', () => {
+          pushRecent(p.id, p.name||"");
+          showToast(`OPEN: ${p.name || ""}`);
+          renderFavRecent();
+        });
+
+        card.querySelector(`[data-fav="${p.id}"]`).addEventListener('click', (e) => {
+          toggleFavorite(p.id);
+          e.currentTarget.textContent = favorites[p.id] ? "★" : "☆";
+          renderFavRecent();
+        });
+
+        productsGrid.appendChild(card);
+      });
+    }
+
+    // --- FAVORITES / RECENT (extra) ---
+    function toggleFavorite(pid){
+      if(favorites[pid]) delete favorites[pid];
+      else favorites[pid] = true;
+      saveLocal("favorites", favorites);
+    }
+
+    function pushRecent(pid, name){
+      recent = recent.filter(x => x.id !== pid);
+      recent.unshift({id:pid, name});
+      recent = recent.slice(0, 6);
+      saveLocal("recent", recent);
+    }
+
+    function renderFavRecent(){
+      const favDiv = document.getElementById('favorites-list');
+      const recDiv = document.getElementById('recent-list');
+
+      const favIds = Object.keys(favorites);
+      if(favIds.length === 0) favDiv.textContent = "—";
+      else {
+        const names = favIds.map(id => {
+          const p = productsCache.find(x => x.id === id);
+          return p ? p.name : id;
+        }).filter(Boolean);
+        favDiv.innerHTML = names.map(n => `• ${escapeHtml(n)}`).join("<br>");
+      }
+
+      if(recent.length === 0) recDiv.textContent = "—";
+      else recDiv.innerHTML = recent.map(x => `• ${escapeHtml(x.name)}`).join("<br>");
+    }
+
+    // --- CART LOGIC ---
+    function addToCart(id, name, priceRUB){
+      const existing = cart.find(i => i.productId === id);
+      if(existing) existing.qty++;
+      else cart.push({productId:id, name, price: priceRUB, qty:1});
+      saveLocal("cart", cart);
+      updateCartCount();
+      updateCartUI();
+      showToast(`${t("added")}: ${name}`);
+    }
+
+    function updateCartCount(){
+      const count = cart.reduce((acc, item) => acc + item.qty, 0);
+      document.getElementById('cart-count').innerText = count;
+    }
+
+    function updateCartUI(){
+      updateCartCount();
+      const cartItemsDiv = document.getElementById('cart-items');
+
+      let html = '<table class="data-table"><tr><th>ТОВАР</th><th>К-ВО</th><th>СУММА</th><th>УДЛ.</th></tr>';
+      let totalRUB = 0;
+
+      cart.forEach((item, idx) => {
+        const rowTotalRUB = (Number(item.price)||0) * item.qty;
+        totalRUB += rowTotalRUB;
+
+        const rowTotal = formatMoney(convertFromRUB(rowTotalRUB), settings.currency);
+
+        html += `<tr>
+          <td>${escapeHtml(item.name || "")}</td>
+          <td>
+            <button class="btn-sm" style="padding:2px 7px" onclick="changeQty(${idx}, -1)">-</button>
+            ${item.qty}
+            <button class="btn-sm" style="padding:2px 7px" onclick="changeQty(${idx}, 1)">+</button>
+          </td>
+          <td>${rowTotal}</td>
+          <td><button class="btn-sm danger" style="padding:2px 7px" onclick="removeFromCart(${idx})">X</button></td>
+        </tr>`;
+      });
+
+      html += '</table>';
+
+      cartItemsDiv.innerHTML = cart.length ? html : `<p>${t("empty")}</p>`;
+
+      const total = formatMoney(convertFromRUB(totalRUB), settings.currency);
+      document.getElementById('cart-total').innerText = total;
+      document.getElementById('cart-total-cur').innerText = settings.currency;
+    }
+
+    window.changeQty = (idx, delta) => {
+      cart[idx].qty += delta;
+      if(cart[idx].qty <= 0) cart.splice(idx, 1);
+      saveLocal("cart", cart);
+      updateCartUI();
+    };
+    window.removeFromCart = (idx) => {
+      cart.splice(idx, 1);
+      saveLocal("cart", cart);
+      updateCartUI();
+    };
+
+    window.openCheckout = () => {
+      if(cart.length === 0) return showToast(t("cartEmpty"), true);
+      toggleModal('cart-modal');
+      toggleModal('checkout-modal');
+    };
+
+    // --- CHECKOUT -> PAYMENT ---
+    window.goPayment = (e) => {
+      e.preventDefault();
+      if(cart.length === 0) return showToast(t("cartEmpty"), true);
+
+      // simple address validation
+      const addr = document.getElementById('order-address').value.trim();
+      const ent = document.getElementById('order-entrance').value.trim();
+      const apt = document.getElementById('order-apt').value.trim();
+      if(!addr || !ent || !apt) return showToast("ЗАПОЛНИ АДРЕС", true);
+
+      toggleModal('checkout-modal');
+      updatePayAmount();
+      toggleModal('payment-modal');
+    };
+
+    function backToCheckout(){
+      toggleModal('payment-modal');
+      toggleModal('checkout-modal');
+    }
+    window.backToCheckout = backToCheckout;
+
+    function updatePayAmount(){
+      const totalRUB = cart.reduce((acc, item) => acc + (Number(item.price)||0) * item.qty, 0);
+      document.getElementById('pay-amount').innerText = `${formatMoney(convertFromRUB(totalRUB), settings.currency)} ${FX[settings.currency].symbol}`;
+    }
+
+    // --- PAYMENT INPUT MASKS ---
+    const cardNumber = document.getElementById('card-number');
+    const cardExp = document.getElementById('card-exp');
+    const cardCvc = document.getElementById('card-cvc');
+
+    cardNumber.addEventListener('input', () => {
+      const digits = cardNumber.value.replace(/\D/g,'').slice(0,16);
+      cardNumber.value = digits.replace(/(.{4})/g, '$1 ').trim();
+    });
+
+    cardExp.addEventListener('input', () => {
+      const digits = cardExp.value.replace(/\D/g,'').slice(0,4);
+      if(digits.length <= 2) cardExp.value = digits;
+      else cardExp.value = digits.slice(0,2) + "/" + digits.slice(2);
+    });
+
+    cardCvc.addEventListener('input', () => {
+      cardCvc.value = cardCvc.value.replace(/\D/g,'').slice(0,4);
+    });
+
+    // --- PROCESS ORDER (creates Firestore order) ---
+    window.processOrder = async (e) => {
+      e.preventDefault();
+
+      // tiny validation
+      const cn = document.getElementById('card-name').value.trim();
+      const cnum = cardNumber.value.replace(/\s/g,'');
+      const exp = cardExp.value.trim();
+      const cvc = cardCvc.value.trim();
+
+      if(cn.length < 3) return showToast("ИМЯ КОРОТКОЕ", true);
+      if(cnum.length < 12) return showToast("НОМЕР КАРТЫ?", true);
+      if(!/^\d{2}\/\d{2}$/.test(exp)) return showToast("EXP MM/YY", true);
+      if(cvc.length < 3) return showToast("CVC?", true);
+
+      const totalRUB = cart.reduce((acc, item) => acc + (Number(item.price)||0) * item.qty, 0);
+
+      const orderData = {
+        userId: currentUser.uid,
+        username: userDocData.username,
+        items: cart,
+        total: totalRUB,
+        currencyView: settings.currency,
+        delivery: {
+          address: document.getElementById('order-address').value,
+          entrance: document.getElementById('order-entrance').value,
+          apartment: document.getElementById('order-apt').value,
+          floor: document.getElementById('order-floor').value,
+          intercom: document.getElementById('order-intercom').value,
+          comment: document.getElementById('order-comment').value
+        },
+        status: "new",
+        createdAt: serverTimestamp()
+      };
+
+      try {
+        await addDoc(collection(db, "orders"), orderData);
+
+        cart = [];
+        saveLocal("cart", cart);
+        updateCartUI();
+
+        toggleModal('payment-modal');
+        showToast(t("orderSent"));
+      } catch(err) {
+        console.error(err);
+        showToast(t("err"), true);
+      }
+    };
+
+    // --- MODALS ---
+    window.toggleModal = (id) => {
+      const m = document.getElementById(id);
+      m.classList.toggle('hidden');
+    };
+
+    // --- SETTINGS ---
+    function syncSettingsModal(){
+      document.getElementById('set-theme').value = settings.theme;
+      document.getElementById('set-currency').value = settings.currency;
+      document.getElementById('set-lang').value = settings.lang;
+      document.getElementById('set-price-mode').value = settings.priceMode;
+    }
+
+    window.saveSettings = () => {
+      settings.theme = document.getElementById('set-theme').value;
+      settings.currency = document.getElementById('set-currency').value;
+      settings.lang = document.getElementById('set-lang').value;
+      settings.priceMode = document.getElementById('set-price-mode').value;
+
+      document.documentElement.dataset.theme = settings.theme;
+      saveLocal("settings", settings);
+
+      updateHeaderMeta();
+      renderProducts();
+      updateCartUI();
+      renderFavRecent();
+
+      toggleModal('settings-modal');
+      showToast("SAVED");
+    };
+
+    window.resetLocal = () => {
+      localStorage.removeItem("settings");
+      localStorage.removeItem("cart");
+      localStorage.removeItem("favorites");
+      localStorage.removeItem("recent");
+      showToast("LOCAL RESET");
+    };
+
+    // --- ADMIN LOGIC (твоя, слегка подстроил под новый UI) ---
+    window.switchAdminTab = (tab) => {
+      const content = document.getElementById('admin-content');
+      content.innerHTML = `<h3 class="glow">LOADING ${tab.toUpperCase()}...</h3>`;
+
+      if (tab === 'products') renderAdminProducts(content);
+      else if (tab === 'sections') renderAdminSections(content);
+      else if (tab === 'groups') renderAdminGroups(content);
+      else if (tab === 'users') renderAdminUsers(content);
+      else if (tab === 'orders') renderAdminOrders(content);
+    };
+
+    function renderAdminProducts(container) {
+      container.innerHTML = `
+        <div style="border:1px solid var(--term-green); padding:10px; margin-bottom:20px;">
+          <h4>ДОБАВИТЬ ТОВАР</h4>
+          <input id="new-prod-name" placeholder="Название">
+          <input id="new-prod-price" type="number" placeholder="Цена (RUB)">
+          <select id="new-prod-sec"></select>
+          <select id="new-prod-grp"><option value="">Без группы</option></select>
+          <input id="new-prod-img" placeholder="URL Картинки (или загрузите файл)">
+          <input type="file" id="new-prod-file">
+          <button onclick="createProduct()">СОЗДАТЬ</button>
+        </div>
+        <div id="admin-prod-list"></div>
+      `;
+
+      const secSel = document.getElementById('new-prod-sec');
+      secSel.innerHTML = "";
+      globalSections.forEach(s => secSel.innerHTML += `<option value="${s.id}">${escapeHtml(s.name||"")}</option>`);
+
+      secSel.addEventListener('change', () => {
+        const grpSel = document.getElementById('new-prod-grp');
+        grpSel.innerHTML = '<option value="">Без группы</option>';
+        const list = groupsBySection[secSel.value] || [];
+        list.forEach(g => grpSel.innerHTML += `<option value="${g.id}">${escapeHtml(g.name||"")}</option>`);
+      });
+      secSel.dispatchEvent(new Event('change'));
+
+      onSnapshot(collection(db, "products"), (snap) => {
+        let html = '<table class="data-table"><tr><th>ИМЯ</th><th>ЦЕНА</th><th>РАЗДЕЛ</th><th>АКТИВЕН</th><th>Д-ВИЕ</th></tr>';
+        snap.forEach(d => {
+          const p = d.data();
+          const sname = globalSections.find(x=>x.id===p.globalSectionId)?.name || p.globalSectionId || "-";
+          html += `<tr>
+            <td>${escapeHtml(p.name||"")}</td>
+            <td>${escapeHtml(String(p.price||0))}</td>
+            <td class="muted">${escapeHtml(sname)}</td>
+            <td>${p.active}</td>
+            <td><button class="btn-sm" onclick="toggleProductActive('${d.id}', ${!p.active})">${p.active ? 'СКРЫТЬ' : 'ВКЛ'}</button></td>
+          </tr>`;
+        });
+        html += '</table>';
+        document.getElementById('admin-prod-list').innerHTML = html;
+      });
+    }
+
+    window.createProduct = async () => {
+      const name = document.getElementById('new-prod-name').value;
+      const price = Number(document.getElementById('new-prod-price').value);
+      const sec = document.getElementById('new-prod-sec').value;
+      const grp = document.getElementById('new-prod-grp').value;
+      let imgUrl = document.getElementById('new-prod-img').value;
+      const fileInput = document.getElementById('new-prod-file');
+
+      if(fileInput.files[0]) {
+        const file = fileInput.files[0];
+        const storageRef = ref(storage, 'products/' + file.name + Date.now());
+        await uploadBytes(storageRef, file);
+        imgUrl = await getDownloadURL(storageRef);
+      }
+
+      await addDoc(collection(db, "products"), {
+        name, price, globalSectionId: sec, groupId: grp || null,
+        imageUrl: imgUrl, active: true, createdAt: serverTimestamp()
+      });
+      showToast("ТОВАР СОЗДАН");
+    };
+
+    window.toggleProductActive = async (id, status) => {
+      await updateDoc(doc(db, "products", id), { active: status });
+    };
+
+    function renderAdminSections(container) {
+      container.innerHTML = `<h4>РАЗДЕЛЫ</h4><input id="new-sec-name" placeholder="Имя"><button onclick="createSection()">СОЗДАТЬ</button><div id="admin-sec-list"></div>`;
+      onSnapshot(collection(db, "globalSections"), (snap) => {
+        let html = '<ul>';
+        snap.forEach(d => html += `<li>${escapeHtml(d.data().name||"")}</li>`);
+        html += '</ul>';
+        document.getElementById('admin-sec-list').innerHTML = html;
+      });
+    }
+    window.createSection = async () => {
+      await addDoc(collection(db, "globalSections"), { name: document.getElementById('new-sec-name').value, createdAt: serverTimestamp() });
+    };
+
+    function renderAdminGroups(container) {
+      container.innerHTML = `<h4>ГРУППЫ</h4><select id="new-grp-sec-sel"></select><input id="new-grp-name" placeholder="Имя"><button onclick="createGroup()">СОЗДАТЬ</button><div id="admin-grp-list"></div>`;
+      const sel = document.getElementById('new-grp-sec-sel');
+      sel.innerHTML = "";
+      globalSections.forEach(s => sel.innerHTML += `<option value="${s.id}">${escapeHtml(s.name||"")}</option>`);
+      onSnapshot(collection(db, "groups"), (snap) => {
+        let html = '<ul>';
+        snap.forEach(d => html += `<li>${escapeHtml(d.data().name||"")}</li>`);
+        html += '</ul>';
+        document.getElementById('admin-grp-list').innerHTML = html;
+      });
+    }
+    window.createGroup = async () => {
+      await addDoc(collection(db, "groups"), {
+        name: document.getElementById('new-grp-name').value,
+        globalSectionId: document.getElementById('new-grp-sec-sel').value,
+        createdAt: serverTimestamp()
+      });
+    };
+
+    function renderAdminUsers(container) {
+      container.innerHTML = '<h4>ПОЛЬЗОВАТЕЛИ</h4><div id="users-list"></div>';
+      onSnapshot(collection(db, "users"), (snap) => {
+        let html = '<table class="data-table"><tr><th>NICK</th><th>ROLE</th><th>BANNED</th><th>ACT</th></tr>';
+        snap.forEach(d => {
+          const u = d.data();
+          html += `<tr>
+            <td>${escapeHtml(u.username||"")}</td>
+            <td>${escapeHtml(u.role||"")}</td>
+            <td style="color:${u.banned ? 'red' : 'lime'}">${u.banned}</td>
+            <td>${u.role !== 'admin' ? `<button class="btn-sm" onclick="toggleBan('${d.id}', ${!u.banned})">${u.banned ? 'UNBAN' : 'BAN'}</button>` : 'ROOT'}</td>
+          </tr>`;
+        });
+        html += '</table>';
+        document.getElementById('users-list').innerHTML = html;
+      });
+    }
+    window.toggleBan = async (uid, banStatus) => {
+      await updateDoc(doc(db, "users", uid), { banned: banStatus });
+    };
+
+    function renderAdminOrders(container) {
+      container.innerHTML = '<h4>ЗАКАЗЫ</h4><div id="orders-list"></div>';
+      const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+
+      onSnapshot(q, (snap) => {
+        if (snap.empty) {
+          document.getElementById('orders-list').innerHTML = "<p>НЕТ ЗАКАЗОВ</p>";
+          return;
+        }
+
+        let html = '<table class="data-table" style="font-size:0.82rem">';
+        html += '<tr><th>СТАТУС</th><th>ЗАКАЗ</th><th>АДРЕС</th><th>ДЕЙСТВИЕ</th></tr>';
+
+        snap.forEach(d => {
+          const o = d.data();
+          const date = o.createdAt ? new Date(o.createdAt.seconds*1000).toLocaleString('ru-RU') : '...';
+          const itemsList = (o.items||[]).map(i => `<div style="border-bottom:1px solid #333; padding:2px;">• ${escapeHtml(i.name||"")} (x${i.qty}) = ${(Number(i.price)||0) * i.qty}₽</div>`).join('');
+
+          const addressInfo = `
+            <div style="color:white; font-weight:bold;">${escapeHtml(o.delivery?.address||"")}</div>
+            <div>Подъезд: ${escapeHtml(o.delivery?.entrance||"-")} | Кв: ${escapeHtml(o.delivery?.apartment||"-")} | Эт: ${escapeHtml(o.delivery?.floor||"-")}</div>
+            <div>Домофон: ${escapeHtml(o.delivery?.intercom||"-")}</div>
+            <div style="margin-top:5px; color:yellow; font-style:italic;">"${escapeHtml(o.delivery?.comment||"")}"</div>
+          `;
+
+          html += `<tr>
+            <td class="status-${o.status}" style="width:120px;">
+              ${String(o.status||"").toUpperCase()}<br>
+              <span style="font-size:0.75em; color:#666;">${date}</span>
+            </td>
+            <td style="width:32%;">
+              <div><b>User:</b> ${escapeHtml(o.username || o.userId || "")}</div>
+              <div style="margin-top:5px;">${itemsList}</div>
+              <div style="margin-top:5px; text-align:right; font-weight:bold;">ИТОГО: ${escapeHtml(String(o.total||0))} RUB</div>
+              <div class="muted">VIEW: ${escapeHtml(o.currencyView||"RUB")}</div>
+            </td>
+            <td>${addressInfo}</td>
+            <td>
+              <select onchange="updateOrderStatus('${d.id}', this.value)" style="width:100%;">
+                <option value="new" ${o.status==='new'?'selected':''}>НОВЫЙ</option>
+                <option value="processing" ${o.status==='processing'?'selected':''}>В РАБОТЕ</option>
+                <option value="done" ${o.status==='done'?'selected':''}>ВЫПОЛНЕН</option>
+                <option value="canceled" ${o.status==='canceled'?'selected':''}>ОТМЕНА</option>
+              </select>
+            </td>
+          </tr>`;
+        });
+
+        html += '</table>';
+        document.getElementById('orders-list').innerHTML = html;
+      });
+    }
+
+    window.updateOrderStatus = async (oid, status) => {
+      await updateDoc(doc(db, "orders", oid), { status: status });
+    };
+
+    // --- HELPERS ---
+    function showToast(msg, isError=false){
+      const tEl = document.getElementById('toast');
+      tEl.innerText = msg;
+      tEl.style.display = 'block';
+      tEl.style.color = isError ? 'var(--alert-red)' : 'var(--term-green)';
+      setTimeout(() => tEl.style.display = 'none', 2500);
+    }
+
+    function saveLocal(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+    function loadLocal(key){ try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
+
+    function convertFromRUB(rub){
+      const fx = FX[settings.currency] || FX.RUB;
+      return rub * fx.rateFromRUB;
+    }
+
+    function formatMoney(amount, cur){
+      const fx = FX[cur] || FX.RUB;
+      if(settings.priceMode === "raw") return String(Math.round(amount*100)/100);
+      const n = Math.round(amount * 100) / 100;
+      const s = n.toLocaleString(settings.lang === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 2 });
+      return `${s} ${fx.symbol}`;
+    }
+
+    function getGroupName(secId, grpId){
+      const list = groupsBySection[secId] || [];
+      return list.find(x=>x.id===grpId)?.name || null;
+    }
+
+    function escapeHtml(str){
+      return String(str ?? "").replace(/[&<>"']/g, (m) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[m]));
+    }
+  </script>
+</body>
+</html>
